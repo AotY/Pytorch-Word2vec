@@ -49,9 +49,9 @@ class Word2Vec(Bundler):
 
 class SGNS(nn.Module):
 
-    def __init__(self, embedding, vocab_size=20000, n_negs=20, weights=None):
+    def __init__(self, wrod2vec, vocab_size=20000, n_negs=20, weights=None):
         super(SGNS, self).__init__()
-        self.embedding = embedding
+        self.wrod2vec = wrod2vec
         self.vocab_size = vocab_size
 
         self.n_negs = n_negs
@@ -66,17 +66,18 @@ class SGNS(nn.Module):
         batch_size = iword.size()[0]
         context_size = owords.size()[1]
 
+        # negative sample
         if self.weights is not None:
             nwords = torch.multinomial(self.weights, batch_size * context_size * self.n_negs, replacement=True).view(batch_size, -1)
         else:
             nwords = torch.FloatTensor(batch_size, context_size * self.n_negs).uniform_(0, self.vocab_size - 1).long()
 
-        ivectors = self.embedding.forward_i(iword).unsqueeze(2)
-        ovectors = self.embedding.forward_o(owords)
+        ivectors = self.wrod2vec.forward_i(iword).unsqueeze(2)
 
-        nvectors = self.embedding.forward_o(nwords).neg()
+        ovectors = self.wrod2vec.forward_o(owords)
 
-        # 
+        nvectors = self.wrod2vec.forward_o(nwords).neg()
+
         oloss = torch.bmm(ovectors, ivectors).squeeze().sigmoid().log().mean(1)
 
         nloss = torch.bmm(nvectors, ivectors).squeeze().sigmoid().log().view(-1, context_size, self.n_negs).sum(2).mean(1)
