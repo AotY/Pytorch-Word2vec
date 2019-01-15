@@ -17,11 +17,11 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', type=str, default='sgns', help="model name")
     parser.add_argument('--data_dir', type=str, default='./data/', help="data directory path")
-    parser.add_argument('--save_dir', type=str, default='./pts/', help="model directory path")
+    parser.add_argument('--save_dir', type=str, default='./models/', help="model directory path")
     parser.add_argument('--e_dim', type=int, default=300, help="embedding dimension")
     parser.add_argument('--n_negs', type=int, default=20, help="number of negative samples")
     parser.add_argument('--epoch', type=int, default=100, help="number of epochs")
-    parser.add_argument('--mb', type=int, default=4096, help="mini-batch size")
+    parser.add_argument('--batch_size', type=int, default=4096, help="mini-batch size")
     parser.add_argument('--ss_t', type=float, default=1e-5, help="subsample threshold")
     parser.add_argument('--conti', action='store_true', help="continue learning")
     parser.add_argument('--weights', action='store_true', help="use weights for negative sampling")
@@ -55,6 +55,7 @@ def train(args):
     wc = pickle.load(open(os.path.join(args.data_dir, 'wc.dat'), 'rb'))
 
     wf = np.array([wc[word] for word in idx2word])
+
     # norm
     wf = wf / wf.sum()
 
@@ -70,11 +71,12 @@ def train(args):
         os.mkdir(args.save_dir)
 
     word2vec = Word2Vec(vocab_size=vocab_size, embedding_size=args.e_dim)
-    modelpath = os.path.join(args.save_dir, '{}.pt'.format(args.name))
+    model_path = os.path.join(args.save_dir, '{}.pt'.format(args.name))
     sgns = SGNS(embedding=word2vec, vocab_size=vocab_size, n_negs=args.n_negs, weights=weights)
 
-    if os.path.isfile(modelpath) and args.conti:
-        sgns.load_state_dict(t.load(modelpath))
+    if os.path.isfile(model_path) and args.conti:
+        sgns.load_state_dict(t.load(model_path))
+
     if args.cuda:
         sgns = sgns.cuda()
 
@@ -87,8 +89,8 @@ def train(args):
         #  dataset = PermutedSubsampledCorpus(os.path.join(args.data_dir, 'train.dat'))
         dataset = PermutedSubsampledCorpus(os.path.join(args.data_dir, 'train.dat'), ws=ws)
 
-        dataloader = DataLoader(dataset, batch_size=args.mb, shuffle=True)
-        total_batches = int(np.ceil(len(dataset) / args.mb))
+        dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
+        total_batches = int(np.ceil(len(dataset) / args.batch_size))
         pbar = tqdm(dataloader)
         pbar.set_description("[Epoch {}]".format(epoch))
 
